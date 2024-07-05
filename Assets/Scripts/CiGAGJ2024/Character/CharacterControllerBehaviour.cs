@@ -7,8 +7,7 @@ namespace CiGAGJ2024.Character
 {
     [
         RequireComponent(typeof(CharacterControllerInputBehaviour)),
-        RequireComponent(typeof(Rigidbody2D)),
-        RequireComponent(typeof(Collider2D))
+        RequireComponent(typeof(Rigidbody2D))
     ]
     public class CharacterControllerBehaviour : MonoBehaviour
     {
@@ -18,13 +17,16 @@ namespace CiGAGJ2024.Character
         [SerializeField] protected Collider2D Collider;
         [SerializeField] protected LayerMask GroundLayer;
         
-        [Header("Attributes")]
+        [Header("Movement")]
         [SerializeField] private float maxSpeed = 6f;
-        [SerializeField] private float acceleration = 30f;
-        [SerializeField] private float deceleration = 60f;
-        [SerializeField] private float airControlFactor = 0.5f;
+        [SerializeField] private float runAccelAmount = 75f;
+        [SerializeField] private float runDeccelAmount = 50f;
+        [SerializeField] private float accelInAir = 0.65f;
+        [SerializeField] private float deccelInAir = 0.65f;
+        
+        [Header("Jump")]
         [SerializeField] private float jumpForce = 11f;
-        [SerializeField] private float coyoteTime = 0.2f;
+        [SerializeField] private float coyoteTime = 0.1f;
         [SerializeField] private float jumpBufferTime = 0.1f;
 
         public bool IsGrounded
@@ -43,10 +45,10 @@ namespace CiGAGJ2024.Character
         }
 
         private Vector2 _velocity;
-        private float _lastGroundedTime;
-        private float _lastJumpPressedTime;
-        private bool _isJumping;
-        private float _movementValue = 0f, _movementTargetValue = 0f;
+        private float _lastGroundedTime = 0f;
+        private float _lastJumpPressedTime = 0f;
+        private bool _isJumping = false;
+        private float _moveInput;
 
         protected void Awake()
         {
@@ -57,51 +59,38 @@ namespace CiGAGJ2024.Character
 
         protected void Update()
         {
-            MovementCore();
             JumpCheckCore();
         }
 
         protected void FixedUpdate()
         {
-            MovementTickCore();
+            MovementCore();
         }
 
         #region Core Functions
         protected virtual void MovementCore()
         {
-            float targetSpeed = _movementTargetValue * maxSpeed;
-            float speedDiff = targetSpeed - _velocity.x;
-            float accelRate = (Mathf.Abs(targetSpeed) > 0.01f) ? acceleration : deceleration;
+            float targetSpeed = _moveInput * maxSpeed;
+            float speedDiff = targetSpeed - Rigidbody.velocity.x;
+            float accelRate = (Mathf.Abs(targetSpeed) > 0.01f) ? runAccelAmount : runDeccelAmount;
 
-            // Apply air control factor when not grounded
+            // Apply air acceleration factor
             if (!IsGrounded)
             {
-                accelRate *= airControlFactor;
+                accelRate *= (Mathf.Abs(targetSpeed) > 0.01f) ? accelInAir : deccelInAir;
             }
 
-            // Calculate movement
-            float movement = speedDiff * accelRate * Time.deltaTime;
-
-            // Apply movement
-            _velocity.x += movement;
-
-            // Apply gravity
-            if (!IsGrounded)
-            {
-                _velocity.y += Physics2D.gravity.y * Time.deltaTime;
-            }
+            // Calculate force
+            float movement = Mathf.Abs(speedDiff) * accelRate * Mathf.Sign(speedDiff);
+            
+            // Apply force to Rigidbody
+            Rigidbody.AddForce(movement * Vector2.right);
 
             // Clamp velocity
-            _velocity.x = Mathf.Clamp(_velocity.x, -maxSpeed, maxSpeed);
-
-            // Apply velocity to Rigidbody
-            Rigidbody.velocity = _velocity;
-        }
-
-        protected virtual void MovementTickCore()
-        {
-            _movementValue = Mathf.Lerp(_movementValue, _movementTargetValue, Time.fixedDeltaTime);
-            _velocity = Rigidbody.velocity;
+            if (Mathf.Abs(Rigidbody.velocity.x) > maxSpeed)
+            {
+                Rigidbody.velocity = new Vector2(Mathf.Sign(Rigidbody.velocity.x) * maxSpeed, Rigidbody.velocity.y);
+            }
         }
         
         protected void JumpCheckCore()
@@ -112,7 +101,7 @@ namespace CiGAGJ2024.Character
             }
         }
         #endregion
-
+        
         #region Player Actions
 
         /// <summary>
@@ -137,7 +126,7 @@ namespace CiGAGJ2024.Character
         /// </summary>
         public void ListenMovementPerformed(InputAction.CallbackContext context)
         {
-            _movementTargetValue = context.ReadValue<float>();
+            _moveInput = context.ReadValue<float>();
         }
 
         /// <summary>
@@ -145,7 +134,7 @@ namespace CiGAGJ2024.Character
         /// </summary>
         public void ListenMovementCancelled(InputAction.CallbackContext context)
         {
-            _movementTargetValue = 0f;
+            _moveInput = 0f;
         }
 
         /// <summary>

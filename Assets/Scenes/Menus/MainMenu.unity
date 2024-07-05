@@ -804,6 +804,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2757dcb71da744cda864bbcaa66c9e15, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  start: {fileID: 66426523}
+  nextScene: MainMenu
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
