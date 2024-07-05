@@ -1,4 +1,5 @@
 using System;
+using NaughtyAttributes;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -15,15 +16,19 @@ namespace CiGAGJ2024.Character
         [SerializeField] protected CharacterControllerInputBehaviour InputBehaviour;
         [SerializeField] protected Rigidbody2D Rigidbody;
         [SerializeField] protected Collider2D Collider;
+        [SerializeField] protected LayerMask GroundLayer;
         
         [Header("Attributes")]
         [SerializeField] private float maxSpeed = 6f;
         [SerializeField] private float acceleration = 30f;
         [SerializeField] private float deceleration = 60f;
         [SerializeField] private float airControlFactor = 0.5f;
-        
-        public bool IsGrounded { get; set; }
-        
+
+        public bool IsGrounded
+        {
+            get { return Rigidbody.IsTouchingLayers(GroundLayer); }
+        }
+
         private Vector2 _velocity;
         private float _movementValue = 0f, _movementTargetValue = 0f;
 
