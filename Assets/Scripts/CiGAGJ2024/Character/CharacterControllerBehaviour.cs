@@ -23,13 +23,29 @@ namespace CiGAGJ2024.Character
         [SerializeField] private float acceleration = 30f;
         [SerializeField] private float deceleration = 60f;
         [SerializeField] private float airControlFactor = 0.5f;
+        [SerializeField] private float jumpForce = 11f;
+        [SerializeField] private float coyoteTime = 0.2f;
+        [SerializeField] private float jumpBufferTime = 0.1f;
 
         public bool IsGrounded
         {
-            get { return Rigidbody.IsTouchingLayers(GroundLayer); }
+            get
+            {
+                bool grounded = Collider.IsTouchingLayers(GroundLayer);
+                if (grounded)
+                {
+                    _lastGroundedTime = Time.time;
+                    _isJumping = false;
+                }
+                return grounded;
+
+            }
         }
 
         private Vector2 _velocity;
+        private float _lastGroundedTime;
+        private float _lastJumpPressedTime;
+        private bool _isJumping;
         private float _movementValue = 0f, _movementTargetValue = 0f;
 
         protected void Awake()
@@ -38,7 +54,18 @@ namespace CiGAGJ2024.Character
             if (!Rigidbody) Rigidbody = GetComponent<Rigidbody2D>();
             if (!Collider) Collider = GetComponent<Collider2D>();
         }
-        
+
+        protected void Update()
+        {
+            MovementCore();
+            JumpCheckCore();
+        }
+
+        protected void FixedUpdate()
+        {
+            MovementTickCore();
+        }
+
         #region Core Functions
         protected virtual void MovementCore()
         {
@@ -76,22 +103,57 @@ namespace CiGAGJ2024.Character
             _movementValue = Mathf.Lerp(_movementValue, _movementTargetValue, Time.fixedDeltaTime);
             _velocity = Rigidbody.velocity;
         }
+        
+        protected void JumpCheckCore()
+        {
+            if (Time.time - _lastGroundedTime <= coyoteTime && !_isJumping && Time.time - _lastJumpPressedTime <= jumpBufferTime)
+            {
+                Jump();
+            }
+        }
+        #endregion
+
+        #region Player Actions
+
+        /// <summary>
+        /// Performs the actual jump results.
+        /// </summary>
+        /// <remarks>
+        /// Please do not call this function anywhere else other than <see cref="JumpCheckCore"/>, otherwise it would work improperly
+        /// </remarks>
+        /// <seealso cref="ListenJump"/>
+        private void Jump()
+        {
+            _isJumping = true;
+            _lastJumpPressedTime = 0; // Reset jump buffer
+            Rigidbody.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
+        }
+
         #endregion
         
         #region Input Listeners
+        /// <summary>
+        /// Used to listen for performing the horizontal axis input
+        /// </summary>
         public void ListenMovementPerformed(InputAction.CallbackContext context)
         {
             _movementTargetValue = context.ReadValue<float>();
         }
 
+        /// <summary>
+        /// Used to listen for cancelling the horizontal axis input
+        /// </summary>
         public void ListenMovementCancelled(InputAction.CallbackContext context)
         {
             _movementTargetValue = 0f;
         }
 
+        /// <summary>
+        /// Used to listen for performing the jump input
+        /// </summary>
         public void ListenJump(InputAction.CallbackContext context)
         {
-            context.ReadValue<bool>();
+            _lastJumpPressedTime = Time.time; // This is how to call the jump method properly without ignoring the coyote time
         }
         #endregion
     }
